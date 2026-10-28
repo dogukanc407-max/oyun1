@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Tower Defense Game - Nuke Edition</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+  * { box-sizing: border-box; user-select: none; }
+  body {
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(135deg, #1e1e24 0%, #0f0f13 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: 'Press Start 2P', monospace;
+    color: #fff;
+  }
+
+  #game-container {
+    width: 960px;
+    height: 540px;
+    position: relative;
+    background-color: #8cc63f;
+    border: 4px solid #2d3748;
+    border-radius: 12px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+    display: flex;
+    overflow: hidden;
+  }
+
+  #sidebar {
+    width: 250px;
+    height: 100%;
+    background: rgba(26, 32, 44, 0.95);
+    backdrop-filter: blur(8px);
+    border-right: 3px solid #2d3748;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    z-index: 10;
+  }
+
+  .sidebar-title {
+    font-size: 8px;
+    line-height: 12px;
+    text-align: center;
+    color: #48bb78;
+    letter-spacing: 1px;
+    border-bottom: 2px dashed #4a5568;
+    padding-bottom: 8px;
+  }
+
+  .shop-items {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .shop-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #2d3748;
+    padding: 5px 8px;
+    border: 2px solid #4a5568;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .shop-item:hover { background: #3a4a61; transform: translateY(-2px); }
+  .shop-item.selected {
+    border-color: #48bb78;
+    background: #234e52;
+    box-shadow: 0 0 10px rgba(72, 187, 120, 0.5);
+  }
+
+  .shop-item .icon { font-size: 16px; }
+  .shop-item .details { display: flex; flex-direction: column; gap: 2px; }
+  .shop-item .name { font-size: 6px; color: #e2e8f0; }
+  .shop-item .price { font-size: 6px; color: #ecc94b; }
+
+  .bottom-upgrade {
+    background: #2b6cb0;
+    border: 2px solid #3182ce;
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+    font-size: 7px;
+    line-height: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .bottom-upgrade:hover {
+    background: #3182ce;
+    box-shadow: 0 0 8px rgba(49, 130, 206, 0.6);
+  }
+
+  #canvas-container { flex-grow: 1; position: relative; }
+  canvas { display: block; cursor: crosshair; }
+
+  #hud-overlay {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    display: flex;
+    gap: 10px;
+    pointer-events: none;
+  }
+
+  .hud-card {
+    background: rgba(26, 32, 44, 0.85);
+    backdrop-filter: blur(4px);
+    border: 2px solid #4a5568;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 8px;
+    color: #fff;
+  }
+
+  #king-portrait {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    width: 80px;
+    height: 80px;
+    background: rgba(26, 32, 44, 0.9);
+    border: 2px solid #48bb78;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px;
+    pointer-events: none;
+  }
+
+  #king-portrait .title { font-size: 7px; color: #48bb78; }
+  #king-portrait .face {
+    width: 42px;
+    height: 42px;
+    background-color: #d17b78;
+    border-radius: 8px;
+    position: relative;
+  }
+  #king-portrait .face::before, #king-portrait .face::after {
+    content: ''; position: absolute; width: 5px; height: 5px; background: #000; top: 12px;
+  }
+  #king-portrait .face::before { left: 10px; }
+  #king-portrait .face::after { right: 10px; }
+  #king-portrait .face .smile {
+    position: absolute; bottom: 8px; left: 10px; width: 22px; height: 10px;
+    border-bottom: 3px solid #000; border-radius: 0 0 10px 10px;
+  }
+
+  #speed-controls {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    font-size: 9px;
+    cursor: pointer;
+    background: rgba(26, 32, 44, 0.9);
+    border: 2px solid #4a5568;
+    border-radius: 8px;
+    padding: 8px 12px;
+  }
+
+  .menu-overlay {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(15, 15, 19, 0.94);
+    backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+  }
+
+  .menu-title {
+    font-size: 18px;
+    color: #48bb78;
+    text-shadow: 0 0 15px rgba(72, 187, 120, 0.6);
+    margin-bottom: 20px;
+    text-align: center;
+    line-height: 26px;
+  }
+
+  .mode-container { display: flex; gap: 15px; margin-bottom: 20px; }
+
+  .mode-card {
+    width: 180px;
+    background: #2d3748;
+    border: 2px solid #4a5568;
+    border-radius: 8px;
+    padding: 12px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+  }
+
+  .mode-card:hover, .mode-card.selected {
+    border-color: #48bb78;
+    background: #1a202c;
+    box-shadow: 0 0 10px rgba(72, 187, 120, 0.5);
+    transform: translateY(-3px);
+  }
+
+  .mode-card .mode-name { font-size: 9px; color: #ecc94b; margin-bottom: 8px; }
+  .mode-card .mode-desc { font-size: 6px; color: #cbd5e0; line-height: 10px; }
+
+  .btn {
+    background: #48bb78;
+    color: #000;
+    border: 2px solid #fff;
+    border-radius: 8px;
+    padding: 12px 30px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+  }
+
+  .btn:hover {
+    box-shadow: 0 0 15px rgba(72, 187, 120, 0.9);
+    transform: scale(1.05);
+  }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="game-container">
+
+  <div id="main-menu" class="menu-overlay">
+    <div class="menu-title">HUMAN WAR<br><span style="font-size: 10px; color: #38a169;">NUKE EDITION</span></div>
+    
+    <div class="mode-container">
+      <div class="mode-card selected" onclick="selectMode('normal', this)">
+        <div class="mode-name">KLASİK</div>
+        <div class="mode-desc">Dengeli başlangıç parası ve normal düşmanlar.</div>
+      </div>
+      <div class="mode-card" onclick="selectMode('hardcore', this)">
+        <div class="mode-name" style="color: #f56565;">HARDCORE</div>
+        <div class="mode-desc">1 HP, yüksek kule maliyetleri ve hızlı düşmanlar!</div>
+      </div>
+      <div class="mode-card" onclick="selectMode('speedrun', this)">
+        <div class="mode-name" style="color: #38b2ac;">KOLAY / SPEED</div>
+        <div class="mode-desc">Bol para ($50), düşük kule fiyatları.</div>
+      </div>
+    </div>
+
+    <button class="btn" onclick="startGame()">OYUNU BAŞLAT</button>
+  </div>
+
+  <div id="game-over-menu" class="menu-overlay hidden">
+    <div class="menu-title" style="color: #e53e3e;">GAME OVER</div>
+    <div id="final-stats" style="font-size: 9px; margin-bottom: 25px; line-height: 18px; text-align: center;"></div>
+    <button class="btn" onclick="restartGame()">TEKRAR DENE</button>
+  </div>
+
+  <div id="sidebar">
+    <div>
+      <div class="sidebar-title">SAVUNMA SEC</div>
+      <div class="shop-items">
+        <div class="shop-item selected" onclick="selectTower('basic', this)">
+          <div class="icon">👮‍♂️</div>
+          <div class="details">
+            <div class="name">POLIS</div>
+            <div class="price" id="price-basic">2 MONEY</div>
+          </div>
+        </div>
+        <div class="shop-item" onclick="selectTower('bomb', this)">
+          <div class="icon">👨‍🚒</div>
+          <div class="details">
+            <div class="name">BOMBARDIR</div>
+            <div class="price" id="price-bomb">5 MONEY</div>
+          </div>
+        </div>
+        <div class="shop-item" onclick="selectTower('rapid', this)">
+          <div class="icon">💂‍♂️</div>
+          <div class="details">
+            <div class="name">MUHAFIZ</div>
+            <div class="price" id="price-rapid">8 MONEY</div>
+          </div>
+        </div>
+        <div class="shop-item" onclick="selectTower('mega', this)">
+          <div class="icon">🚀</div>
+          <div class="details">
+            <div class="name">MEGA MEGA</div>
+            <div class="price" id="price-mega">15 MONEY</div>
+          </div>
+        </div>
+        <div class="shop-item" onclick="selectTower('nuke', this)">
+          <div class="icon">⚛️</div>
+          <div class="details">
+            <div class="name">MEGA NUKE</div>
+            <div class="price" id="price-nuke">30 MONEY</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-upgrade" onclick="buyClone()">
+      <div>#1 4 MONEY</div>
+      <div style="margin-top: 4px; color: #a0aec0;">+1 KLON KULE</div>
+    </div>
+  </div>
+
+  <div id="canvas-container">
+    <div id="hud-overlay">
+      <div class="hud-card">HP: <span id="hud-hp" style="color:#f56565">15</span></div>
+      <div class="hud-card">MOD: <span id="hud-mode" style="color:#ecc94b">NORMAL</span></div>
+      <div class="hud-card">WAVE: <span id="hud-wave">1/35</span></div>
+      <div class="hud-card">MONEY: <span id="hud-money" style="color:#ecc94b">25</span></div>
+      <div class="hud-card">SCORE: <span id="hud-score">0</span></div>
+    </div>
+
+    <canvas id="gameCanvas" width="710" height="540"></canvas>
+
+    <div id="speed-controls" onclick="toggleSpeed()">
+      HIZ: <span id="speed-text" style="color:#48bb78">1X</span>
+    </div>
+
+    <div id="king-portrait">
+      <div class="title">ADAM</div>
+      <div class="face">
+        <div class="smile"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let gameState = 'MENU';
+let selectedMode = 'normal';
+
+const MODES = {
+  normal:   { hp: 15, money: 25, enemySpeedMult: 1.0, towerCostMult: 1.0, label: 'KLASIK' },
+  hardcore: { hp: 1,  money: 15, enemySpeedMult: 1.3, towerCostMult: 1.5, label: 'HARDCORE' },
+  speedrun: { hp: 30, money: 50, enemySpeedMult: 0.9, towerCostMult: 0.8, label: 'SPEED' }
+};
+
+let health = 15;
+let wave = 1;
+let maxWave = 35;
+let money = 25;
+let score = 0;
+let selectedTowerType = 'basic';
+let gameSpeed = 1;
+let spawnTimer = 0;
+
+let enemiesSpawnedInWave = 0;
+let enemiesPerWave = 10;
+let isWaveActive = true;
+let waveBreakTimer = 0;
+let megaBossSpawnedInWave = false;
+
+let screenShake = 0;
+
+const waypoints = [
+  {x: 350, y: -20},
+  {x: 350, y: 130},
+  {x: 210, y: 260},
+  {x: 370, y: 390},
+  {x: 500, y: 310},
+  {x: 440, y: 160},
+  {x: 490, y: -20}
+];
+
+let towers = [];
+let enemies = [];
+let projectiles = [];
+let explosions = [];
+
+function getTowerCosts() {
+  const mult = MODES[selectedMode].towerCostMult;
+  return {
+    basic: Math.round(2 * mult),
+    bomb:  Math.round(5 * mult),
+    rapid: Math.round(8 * mult),
+    mega:  Math.round(15 * mult),
+    nuke:  Math.round(30 * mult)
+  };
+}
+
+function updateShopPrices() {
+  const costs = getTowerCosts();
+  document.getElementById('price-basic').innerText = `${costs.basic} MONEY`;
+  document.getElementById('price-bomb').innerText = `${costs.bomb} MONEY`;
+  document.getElementById('price-rapid').innerText = `${costs.rapid} MONEY`;
+  document.getElementById('price-mega').innerText = `${costs.mega} MONEY`;
+  document.getElementById('price-nuke').innerText = `${costs.nuke} MONEY`;
+}
+
+function selectMode(modeKey, element) {
+  selectedMode = modeKey;
+  document.querySelectorAll('.mode-card').forEach(el => el.classList.remove('selected'));
+  element.classList.add('selected');
+}
+
+function startGame() {
+  const mode = MODES[selectedMode];
+  health = mode.hp;
+  money = mode.money;
+  document.getElementById('hud-mode').innerText = mode.label;
+  updateShopPrices();
+  
+  document.getElementById('main-menu').classList.add('hidden');
+  gameState = 'PLAYING';
+}
+
+function restartGame() {
+  document.getElementById('game-over-menu').classList.add('hidden');
+  document.getElementById('main-menu').classList.remove('hidden');
+  gameState = 'MENU';
+  
+  wave = 1;
+  score = 0;
+  towers = [];
+  enemies = [];
+  projectiles = [];
+  explosions = [];
+  enemiesSpawnedInWave = 0;
+  enemiesPerWave = 10;
+  isWaveActive = true;
+  megaBossSpawnedInWave = false;
+  screenShake = 0;
+}
+
+function gameOver() {
+  gameState = 'GAMEOVER';
+  document.getElementById('final-stats').innerHTML = `
+    MOD: <span style="color:#ecc94b">${MODES[selectedMode].label}</span><br>
+    ULASILAN WAVE: <span style="color:#ecc94b">${wave}</span><br>
+    TOPLAM SKOR: <span style="color:#48bb78">${score}</span>
+  `;
+  document.getElementById('game-over-menu').classList.remove('hidden');
+}
+
+function updateHUD() {
+  document.getElementById('hud-hp').innerText = Math.max(0, health);
+  document.getElementById('hud-wave').innerText = `${wave}/${maxWave}`;
+  document.getElementById('hud-money').innerText = money;
+  document.getElementById('hud-score').innerText = score;
+}
+
+function drawMap() {
+  ctx.fillStyle = '#8cc63f';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.beginPath();
+  ctx.lineWidth = 60;
+  ctx.strokeStyle = '#2d5a1e';
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  
+  ctx.moveTo(waypoints[0].x, waypoints[0].y);
+  for(let i = 1; i < waypoints.length; i++) {
+    ctx.lineTo(waypoints[i].x, waypoints[i].y);
+  }
+  ctx.stroke();
+
+  ctx.fillStyle = '#1a202c';
+  ctx.save();
+  ctx.translate(290, 230);
+  ctx.rotate(-Math.PI / 4);
+  ctx.fillRect(-10, -50, 20, 100);
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(500, 190);
+  ctx.rotate(Math.PI / 12);
+  ctx.fillRect(-10, -50, 20, 110);
+  ctx.restore();
+}
+
+function drawUI() {
+  updateHUD();
+
+  if (!isWaveActive && wave <= maxWave && gameState === 'PLAYING') {
+    ctx.fillStyle = '#e53e3e';
+    ctx.font = '12px "Press Start 2P"';
+    ctx.textAlign = 'center';
+    ctx.fillText('YENI WAVE GELIYOR...', canvas.width / 2, 70);
+    ctx.textAlign = 'start';
+  }
+}
+
+function selectTower(type, element) {
+  selectedTowerType = type;
+  document.querySelectorAll('.shop-item').forEach(el => el.classList.remove('selected'));
+  element.classList.add('selected');
+}
+
+function isPointOnPath(x, y) {
+  for (let i = 0; i < waypoints.length - 1; i++) {
+    const p1 = waypoints[i];
+    const p2 = waypoints[i + 1];
+    const l2 = Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2);
+    let t = ((x - p1.x) * (p2.x - p1.x) + (y - p1.y) * (p2.y - p1.y)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    const projX = p1.x + t * (p2.x - p1.x);
+    const projY = p1.y + t * (p2.y - p1.y);
+    if (Math.hypot(x - projX, y - projY) < 35) return true;
+  }
+  return false;
+}
+
+function buyClone() {
+  if (money >= 4 && gameState === 'PLAYING') {
+    let attempts = 0;
+    let placed = false;
+    
+    while (attempts < 50 && !placed) {
+      let rx = Math.floor(Math.random() * (canvas.width - 80)) + 40;
+      let ry = Math.floor(Math.random() * (canvas.height - 80)) + 40;
+      
+      let isTooClose = towers.some(t => Math.hypot(t.x - rx, t.y - ry) < 28);
+      let isOnPath = isPointOnPath(rx, ry);
+
+      if (!isTooClose && !isOnPath) {
+        towers.push({
+          x: rx, y: ry,
+          type: 'basic',
+          range: 130,
+          maxCooldown: 25,
+          cooldown: 0,
+          color: '#2c3e50',
+          symbol: '👮‍♂️'
+        });
+        money -= 4;
+        score += 5;
+        placed = true;
+      }
+      attempts++;
+    }
+  }
+}
+
+function toggleSpeed() {
+  gameSpeed = gameSpeed === 1 ? 2 : 1;
+  document.getElementById('speed-text').innerText = gameSpeed === 1 ? '1X' : '2X';
+}
+
+canvas.addEventListener('click', (e) => {
+  if (gameState !== 'PLAYING') return;
+
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  const costs = getTowerCosts();
+  const currentCost = costs[selectedTowerType];
+
+  const isTooCloseToOtherTower = towers.some(t => Math.hypot(t.x - x, t.y - y) < 28);
+  const isOnPath = isPointOnPath(x, y);
+
+  if (money >= currentCost && !isTooCloseToOtherTower && !isOnPath) {
+    let towerConfig = {
+      basic: { range: 130, cooldown: 25, color: '#2c3e50', symbol: '👮‍♂️' },
+      bomb:  { range: 160, cooldown: 60, color: '#d35400', symbol: '👨‍🚒' },
+      rapid: { range: 120, cooldown: 3,  color: '#27ae60', symbol: '💂‍♂️' },
+      mega:  { range: 200, cooldown: 80, color: '#e53e3e', symbol: '🚀' },
+      nuke:  { range: 260, cooldown: 180, color: '#38a169', symbol: '⚛️' }
+    }[selectedTowerType];
+
+    towers.push({
+      x: x, y: y,
+      type: selectedTowerType,
+      range: towerConfig.range,
+      maxCooldown: towerConfig.cooldown,
+      cooldown: 0,
+      color: towerConfig.color,
+      symbol: towerConfig.symbol
+    });
+    money -= currentCost;
+  }
+});
+
+function spawnEnemy() {
+  let rand = Math.random();
+  let type = 'normal';
+  let speedMult = MODES[selectedMode].enemySpeedMult;
+
+  if ((wave % 10 === 0) && !megaBossSpawnedInWave) {
+    type = 'megaBoss';
+    megaBossSpawnedInWave = true;
+  } else if (rand < 0.05 + (wave * 0.01)) {
+    type = 'blueBoss';
+  } else if (rand < 0.2 + (wave * 0.01)) {
+    type = 'redBoss';
+  }
+
+  let hpMultiplier = 1 + (wave - 1) * 0.25;
+
+  let config = {
+    normal:   { hp: 15 * hpMultiplier,  speed: 1.3 * speedMult, radius: 12, skinColor: '#ffdbac', shirtColor: '#e74c3c', name: 'DÜŞMAN' },
+    redBoss:  { hp: 120 * hpMultiplier, speed: 0.7 * speedMult, radius: 22, skinColor: '#ffc0cb', shirtColor: '#8b0000', name: 'DEV DÜŞMAN' },
+    blueBoss: { hp: 300 * hpMultiplier, speed: 0.4 * speedMult, radius: 36, skinColor: '#99ccff', shirtColor: '#000288', name: 'DEV MAVİ' },
+    megaBoss: { hp: 500,                speed: 0.3 * speedMult, radius: 55, skinColor: '#ffd700', shirtColor: '#ff0055', name: '👑 MEGA BOSS 👑' }
+  }[type];
+
+  enemies.push({
+    x: waypoints[0].x,
+    y: waypoints[0].y,
+    targetIdx: 1,
+    hp: config.hp,
+    maxHp: config.hp,
+    speed: config.speed,
+    type: type,
+    radius: config.radius,
+    skinColor: config.skinColor,
+    shirtColor: config.shirtColor,
+    name: config.name
+  });
+
+  enemiesSpawnedInWave++;
+}
+
+function createExplosion(x, y, radius, isNuke = false) {
+  explosions.push({ x: x, y: y, maxRadius: radius, currentRadius: 2, alpha: 1, isNuke: isNuke });
+  if (isNuke) {
+    screenShake = 20; // Nükleer patlamada ekran sarsıntısı
+  }
+}
+
+function gameLoop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  ctx.save();
+
+  // Ekran Sarsıntısı Efekti
+  if (screenShake > 0) {
+    let rx = (Math.random() - 0.5) * screenShake;
+    let ry = (Math.random() - 0.5) * screenShake;
+    ctx.translate(rx, ry);
+    screenShake--;
+  }
+
+  drawMap();
+  drawUI();
+
+  if (gameState === 'PLAYING') {
+    if (health <= 0) {
+      gameOver();
+    }
+
+    if (isWaveActive) {
+      if (enemiesSpawnedInWave < enemiesPerWave) {
+        spawnTimer += gameSpeed;
+        if (spawnTimer > Math.max(30, 90 - wave * 2)) {
+          spawnEnemy();
+          spawnTimer = 0;
+        }
+      } else if (enemies.length === 0) {
+        isWaveActive = false;
+        waveBreakTimer = 0;
+      }
+    } else {
+      waveBreakTimer += gameSpeed;
+      if (waveBreakTimer > 180 && wave < maxWave) {
+        wave++;
+        enemiesSpawnedInWave = 0;
+        enemiesPerWave = Math.floor(10 + wave * 3);
+        money += 10 + wave * 2;
+        isWaveActive = true;
+        megaBossSpawnedInWave = false;
+      }
+    }
+
+    for(let speedStep = 0; speedStep < gameSpeed; speedStep++) {
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        let e = enemies[i];
+        let target = waypoints[e.targetIdx];
+        let dx = target.x - e.x;
+        let dy = target.y - e.y;
+        let dist = Math.hypot(dx, dy);
+
+        if (dist < e.speed) {
+          e.targetIdx++;
+          if (e.targetIdx >= waypoints.length) {
+            health -= e.type === 'megaBoss' ? 10 : (e.type === 'blueBoss' ? 5 : (e.type === 'redBoss' ? 3 : 1));
+            enemies.splice(i, 1);
+            continue;
+          }
+        } else {
+          e.x += (dx / dist) * e.speed;
+          e.y += (dy / dist) * e.speed;
+        }
+      }
+
+      towers.forEach(t => {
+        if (t.cooldown > 0) t.cooldown--;
+        else {
+          let target = enemies.find(e => Math.hypot(e.x - t
