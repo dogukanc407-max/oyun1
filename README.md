@@ -1,0 +1,1 @@
+oku bunun çalma oyna
